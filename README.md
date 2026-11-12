@@ -1,3 +1,15 @@
+# XDG Portal implementation
+------------
+This fork is the exact same Proton CachyOS with tweaks to include a modified version of this Wine patch https://gitlab.winehq.org/wine/wine/-/merge_requests/10060
+
+It replaces Wine's "Save As","Open With" and "Open Folder" dialogues and reroutes them through XDG Portal to get a more native experience with your DE. This is extremely useful for apps that need to "Save" files, such as Warudo.
+
+The Original patch is entirely vibecoded, as well as this implementation. Due to that, you should ABSOLUTELY make a backup of your PREFIX before using this version, just in case it doesn't work or something breaks
+
+# MAKE A BACKUP OF YOUR PREFIX
+
+Now with the original readme:
+
 Introduction
 ------------
 
