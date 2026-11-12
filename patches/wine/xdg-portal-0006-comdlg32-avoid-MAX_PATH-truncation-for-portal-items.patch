@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Local WeCom Wine Build <local@localhost>
+Date: Mon, 31 Aug 2026 22:16:00 +0800
+Subject: [PATCH 6/7] comdlg32: avoid MAX_PATH truncation for portal items
+
+The portal Unix boundary already supports PORTAL_PATH_MAX UTF-16 code units.
+Keep IFileDialog's cached path and intermediate folder buffers at the same
+limit so document-portal paths are not truncated back to MAX_PATH.
+---
+ dlls/comdlg32/itemdlg.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/dlls/comdlg32/itemdlg.c b/dlls/comdlg32/itemdlg.c
+index 241f160..3bd0bfe 100644
+--- a/dlls/comdlg32/itemdlg.c
++++ b/dlls/comdlg32/itemdlg.c
+@@ -135,7 +135,7 @@ typedef struct FileDialogImpl {
+     IShellItem *psi_setfolder;
+     IShellItem *psi_folder;
+ 
+-    WCHAR portal_result_path[MAX_PATH];
++    WCHAR portal_result_path[PORTAL_PATH_MAX];
+     BOOL portal_result_valid;
+ 
+     HWND dlg_hwnd;
+@@ -499,7 +499,7 @@ static void set_result_folder(FileDialogImpl *This, const WCHAR *path)
+ {
+     IShellItem *psi = NULL;
+     PIDLIST_ABSOLUTE pidl = NULL;
+-    WCHAR dir[MAX_PATH];
++    WCHAR dir[PORTAL_PATH_MAX];
+     const WCHAR *slash;
+     size_t len;
+ 
+@@ -2877,7 +2877,7 @@ static HRESULT try_portal_itemdlg(FileDialogImpl *This, HWND hwndOwner)
+ {
+     struct portal_open_file_params open_params = {0};
+     struct portal_save_file_params save_params = {0};
+-    WCHAR folder_w[MAX_PATH];
++    WCHAR folder_w[PORTAL_PATH_MAX];
+     WCHAR *dir;
+     UINT filter_index;
+     NTSTATUS status;

@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: wecom-wine-flatpak <noreply@local>
+Date: Tue, 1 Sep 2026 11:30:00 +0800
+Subject: [PATCH 7/7] comdlg32: handle desktop folder initialization failure
+
+SHGetDesktopFolder can fail when Wine profile shell-folder links point outside
+of a sandbox.  FileDialog_constructor unconditionally dereferenced the NULL
+result, crashing applications before the portal backend could run.
+
+Return the initialization failure to the caller instead.  Prefix setup also
+creates private fallback folders, so this is a final guard for broken or
+restricted profiles.
+---
+ dlls/comdlg32/itemdlg.c | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/dlls/comdlg32/itemdlg.c b/dlls/comdlg32/itemdlg.c
+index 3bd0bfe..91db390 100644
+--- a/dlls/comdlg32/itemdlg.c
++++ b/dlls/comdlg32/itemdlg.c
+@@ -5506,9 +5506,20 @@ static HRESULT FileDialog_constructor(IUnknown *pUnkOuter, REFIID riid, void **p
+ 
+     /* FIXME: The default folder setting should be restored for the
+      * application if it was previously set. */
+-    SHGetDesktopFolder(&psf);
+-    SHGetItemFromObject((IUnknown*)psf, &IID_IShellItem, (void**)&fdimpl->psi_defaultfolder);
++    psf = NULL;
++    hr = SHGetDesktopFolder(&psf);
++    if (FAILED(hr) || !psf)
++    {
++        WARN("Failed to get desktop folder (0x%08lx, %p).\n", hr, psf);
++        IFileDialog2_Release(&fdimpl->IFileDialog2_iface);
++        return FAILED(hr) ? hr : E_FAIL;
++    }
++
++    hr = SHGetItemFromObject((IUnknown*)psf, &IID_IShellItem,
++                             (void **)&fdimpl->psi_defaultfolder);
+     IShellFolder_Release(psf);
++    if (FAILED(hr))
++        WARN("Failed to create default folder item (0x%08lx).\n", hr);
+ 
+     hr = init_custom_controls(fdimpl);
+     if(FAILED(hr))
