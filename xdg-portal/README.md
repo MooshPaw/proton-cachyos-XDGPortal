@@ -103,8 +103,8 @@ GitHub Actions must be enabled on the fork (Actions tab → enable workflows).
 
 ### Building locally
 
-Needs Docker or Podman; the first build downloads the Steam Runtime SDK image
-and takes a few hours.
+Needs Docker or Podman, and git-lfs for the submodule checkout; the first build
+downloads the Steam Runtime SDK image and takes a few hours.
 
 ```sh
 git submodule update --init --recursive
@@ -115,6 +115,34 @@ make redist        # -> Proton-CachyOS-XDG-portal-11.0-20261015.tar.xz
 ```
 
 The build name is what Steam shows in its compatibility tool list.
+
+Add `--enable-ccache` to `configure.sh` when building more than one variant. It
+does not help across variants that differ in `-march`, though: each set of
+compiler flags has its own cache keys, so a second variant is close to a full
+rebuild.
+
+#### If the submodule checkout fails
+
+`git submodule update` stopping with `smudge filter lfs failed` means git-lfs is
+missing. One of gstreamer's test-media submodules keeps its videos in LFS, and
+that one failure aborts the whole recursive walk, so submodules ordered after it
+(`wine`, `vkd3d-proton`) stay empty and the build later dies on a missing source
+file such as `openfst/configure.ac`. Either install git-lfs, or skip the LFS
+files — the build does not use them:
+
+```sh
+git -c filter.lfs.smudge=cat -c filter.lfs.process= -c filter.lfs.required=false \
+    submodule update --init --recursive
+```
+
+An aborted walk can also leave submodules that `git submodule status` reports as
+clean while their working tree is empty, because the recorded commit already
+matches the submodule's HEAD, so a plain re-run skips them. `--force` checks
+them out:
+
+```sh
+git submodule update --init --force --recursive
+```
 
 ## License
 
