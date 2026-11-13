@@ -2,7 +2,8 @@
 
 Proton-CachyOS with native file dialogs: Windows programs' Open, Save and
 folder pickers go through the XDG Desktop Portal, so you get your desktop's
-own file chooser (KDE, GNOME, etc.) instead of Wine's.
+own file chooser (KDE, GNOME, etc.) instead of Wine's. "Open folder location"
+opens your file manager too, instead of Wine's folder window.
 
 It is upstream [Proton-CachyOS](https://github.com/CachyOS/proton-cachyos)
 plus the patches in `patches/wine/`, which come from Wine merge request
@@ -32,6 +33,18 @@ You need a portal backend running on the host (`xdg-desktop-portal` plus
 | `WINE_FORCE_PORTAL=1 %command%` | Always use the portal, even when some customisations are lost |
 | winecfg → Desktop Integration → File dialogs | Per-prefix auto / always / never |
 
+**Electron- and Chromium-based programs need `WINE_FORCE_PORTAL=1`.** Chromium
+always registers `IFileDialogEvents` listeners on its dialogs, and under `auto`
+the portal is skipped whenever a dialog has event listeners, custom controls or
+options the portal cannot express — so `auto` can never succeed for them and you
+silently get Wine's dialog. Verified with
+[Warudo](https://store.steampowered.com/app/2079120/), whose UI is an Electron
+app: unusable on `auto`, correct with the variable set.
+
+Folder locations are not gated this way — they follow the same setting but only
+`never` turns them off, since there are no dialog options to be incompatible
+with.
+
 The winecfg option is stored as the string value `FileDialogPortal`
 (`auto`, `always` or `never`) under `HKCU\Software\Wine\X11 Driver`. Like other
 Wine settings it can also be set for a single program under
@@ -47,6 +60,7 @@ dialog back. `WINE_FORCE_PORTAL=1` overrides every registry setting.
 | --- | --- |
 | 0001–0005 | Alexander Wilms, Wine MR !10060 (comdlg32 portal backend, IFileDialog routing, winecfg option, test, shell32 folder picker) |
 | 0006–0007 | [WeComWine](https://github.com/loveyu/WeComWine) follow-up fixes (long portal paths, crash when the desktop folder can't be opened) |
+| 0008 | This fork: "open folder location" opens the host file manager (shell32) |
 
 Changes made when porting to Proton-CachyOS:
 

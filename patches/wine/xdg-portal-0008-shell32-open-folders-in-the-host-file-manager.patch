@@ -1,0 +1,81 @@
+From: MooshPaw <sebas5823xd@gmail.com>
+Subject: [PATCH] shell32: open folders in the host file manager
+
+ShellExecute on a directory ("open folder location") launched Wine's own
+explorer. Hand the path to winebrowser instead, which resolves it to a
+unix path and runs xdg-open, so the folder appears in the desktop's file
+manager. Gated on the same FileDialogPortal policy as the file dialogs,
+so setting it to "never" restores the old behaviour.
+
+diff --git a/dlls/shell32/shlexec.c b/dlls/shell32/shlexec.c
+index 0b1a7198e..9042757bc 100644
+--- a/dlls/shell32/shlexec.c
++++ b/dlls/shell32/shlexec.c
+@@ -41,6 +41,7 @@
+ #include "shresdef.h"
+ 
+ #include "wine/debug.h"
++#include "wine/appdefaults.h"
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(exec);
+ 
+@@ -1532,6 +1533,24 @@ static void SHELL_translate_idlist( LPSHELLEXECUTEINFOW sei, LPWSTR wszParameter
+     }
+ }
+ 
++/* Folders are shown in the host's file manager unless the portal policy that
++ * governs the file dialogs is set to "never", so turning the portal off also
++ * restores Wine's own folder window. */
++static BOOL use_host_file_manager(void)
++{
++    const char *force_portal = getenv("WINE_FORCE_PORTAL");
++    WCHAR value[32];
++
++    if (force_portal && *force_portal == '1')
++        return TRUE;
++
++    if (wine_get_appdefaults_reg_sz(L"X11 Driver", L"FileDialogPortal", value, sizeof(value))
++        && !wcsicmp(value, L"never"))
++        return FALSE;
++
++    return TRUE;
++}
++
+ static UINT_PTR SHELL_quote_and_execute( LPCWSTR wcmd, LPCWSTR wszParameters, LPCWSTR wszKeyname, LPCWSTR wszApplicationName, LPWSTR env, LPSHELLEXECUTEINFOW psei, LPSHELLEXECUTEINFOW psei_out, SHELL_ExecuteW32 execfunc )
+ {
+     UINT_PTR retval;
+@@ -1895,6 +1914,34 @@ static BOOL SHELL_execute( LPSHELLEXECUTEINFOW sei, SHELL_ExecuteW32 execfunc )
+                                           sei, execfunc );
+         free( env );
+     }
++    else if (PathIsDirectoryW(lpFile) && use_host_file_manager())
++    {
++        /* Hand the folder to winebrowser, which turns the DOS path into a unix
++         * one and opens it with xdg-open, i.e. the desktop's file manager. */
++        WCHAR wExec[MAX_PATH];
++        WCHAR *lpQuotedFile = NULL;
++        UINT len = GetSystemDirectoryW( wExec, MAX_PATH - ARRAY_SIZE(L"\\winebrowser.exe") );
++
++        if (len)
++            lpQuotedFile = malloc( sizeof(WCHAR) * (lstrlenW(lpFile) + 3) );
++
++        if (lpQuotedFile)
++        {
++            lstrcpyW( wExec + len, L"\\winebrowser.exe" );
++            lstrcpyW( lpQuotedFile, L"\"" );
++            lstrcatW( lpQuotedFile, lpFile );
++            lstrcatW( lpQuotedFile, L"\"" );
++            TRACE("opening folder %s with %s\n", debugstr_w(lpFile), debugstr_w(wExec));
++            /* An empty key name keeps SHELL_quote_and_execute from replacing
++             * the command above with a registry association. */
++            retval = SHELL_quote_and_execute( wExec, lpQuotedFile, L"",
++                                              wszApplicationName, NULL,
++                                              &sei_tmp, sei, execfunc );
++            free( lpQuotedFile );
++        }
++        else
++            retval = 0; /* Out of memory */
++    }
+     else if (PathIsDirectoryW(lpFile))
+     {
+         WCHAR wExec[MAX_PATH];
