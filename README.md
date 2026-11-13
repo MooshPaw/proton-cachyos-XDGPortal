@@ -7,7 +7,7 @@ It replaces Wine's "Save As","Open With" and "Open Folder" dialogues and reroute
 The Original patch is entirely vibecoded, as well as this implementation. Due to that, you should ABSOLUTELY make a backup of your PREFIX before using this version, just in case it doesn't work or something breaks
 
 # Installation
-* Download the ZIP file on [Releases](https://github.com/MooshPaw/proton-cachyos-XDGPortal/releases/latest) and extract it under `~/.local/share/steam/compatibilitytools.d/`
+* Download the .tar.gz file on [Releases](https://github.com/MooshPaw/proton-cachyos-XDGPortal/releases/latest) and extract it under `~/.local/share/steam/compatibilitytools.d/`
 * Restart Steam
 * Change compatibility tool to **Proton CachyOS XDG Portal**
 * Launch your game with `WINE_FORCE_PORTAL=1 %command%`
